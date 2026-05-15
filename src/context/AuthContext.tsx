@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  sendMagicLink: (email: string) => Promise<void>;
+  sendLoginLink: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const sendMagicLink = async (email: string) => {
+  const sendLoginLink = async (email: string) => {
     const actionCodeSettings = {
       url: window.location.origin,
       handleCodeInApp: true,
@@ -175,13 +175,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
       window.localStorage.setItem('emailForSignIn', email);
     } catch (error: any) {
-      console.error('[AUTH] Magic Link Error:', error);
-      throw new Error(error.message || 'Failed to send magic link.');
+      console.error('[AUTH] Login Link Error:', error);
+      if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('Email Link login is not enabled in Firebase. Go to Authentication > Sign-in method > Click Email/Password > Toggle "Email link (passwordless sign-in)" ON and Save.');
+      }
+      throw new Error(error.message || 'Failed to send login link.');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, sendMagicLink, logout }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, sendLoginLink, logout }}>
       {children}
     </AuthContext.Provider>
   );

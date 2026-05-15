@@ -5,22 +5,22 @@ import { SmartAILogo } from './Logo';
 import { Mail, ArrowRight, ShieldCheck, RefreshCcw } from 'lucide-react';
 
 export function AuthScreen({ onComplete }: { onComplete: () => void }) {
-  const { sendMagicLink, signInWithGoogle } = useAuth();
+  const { sendLoginLink, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
 
-  const handleSendMagicLink = async (e: React.FormEvent) => {
+  const handleSendLoginLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setLoading(true);
     setError('');
     try {
-      await sendMagicLink(email);
+      await sendLoginLink(email);
       setSent(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to send magic link. Please check your email and try again.');
+      setError(err.message || 'Failed to send login link. Please check your email and try again.');
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
                     <p className="text-red-500 text-xs text-center">{error}</p>
                     {(error.toLowerCase().includes('app wrapper') || error.toLowerCase().includes('disallowed')) && (
                       <p className="text-white/40 text-[10px] text-center mt-2 leading-tight">
-                        Google prohibits login inside some mobile apps. Use the <strong>Magic Link</strong> option below instead.
+                        Google prohibits login inside some mobile apps. Use the <strong>Email Login</strong> option below instead.
                       </p>
                     )}
                   </div>
@@ -93,11 +93,11 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
 
                 <div className="relative flex items-center py-2">
                   <div className="flex-grow border-t border-white/10"></div>
-                  <span className="flex-shrink mx-4 text-white/20 text-[10px] uppercase tracking-widest font-bold">OR USE MAGIC LINK</span>
+                  <span className="flex-shrink mx-4 text-white/20 text-[10px] uppercase tracking-widest font-bold">OR USE EMAIL LOGIN</span>
                   <div className="flex-grow border-t border-white/10"></div>
                 </div>
 
-                <form onSubmit={handleSendMagicLink} className="space-y-4">
+                <form onSubmit={handleSendLoginLink} className="space-y-4">
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Mail size={18} className="text-white/40 group-focus-within:text-white transition-colors" />
@@ -117,10 +117,10 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
                     disabled={loading || !email}
                     className="w-full bg-white text-black font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/90 active:scale-[0.98] transition-all disabled:opacity-50"
                   >
-                    {loading ? <RefreshCcw size={18} className="animate-spin" /> : <>Send Magic Link <ArrowRight size={18} /></>}
+                    {loading ? <RefreshCcw size={18} className="animate-spin" /> : <>Send Login Link <ArrowRight size={18} /></>}
                   </button>
                   <p className="text-[10px] text-white/20 text-center leading-relaxed px-4">
-                    Magic Link works everywhere, including mobile apps and mini-browsers.
+                    Email Login works everywhere, including mobile apps and mini-browsers.
                   </p>
                 </form>
               </div>
@@ -138,7 +138,7 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
               <div className="space-y-2">
                 <h2 className="text-2xl font-semibold">Check your Email</h2>
                 <p className="text-white/60 text-sm px-4">
-                  We've sent a magic login link to <span className="text-white font-medium">{email}</span>.
+                  We've sent a secure login link to <span className="text-white font-medium">{email}</span>.
                 </p>
               </div>
               <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-[11px] text-white/40 leading-relaxed">
