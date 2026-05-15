@@ -48,8 +48,8 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
     try {
       await signInWithGoogle();
       onComplete();
-    } catch (err) {
-      setError('Google sign-in failed. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Google sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,6 +112,17 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
                   </svg>
                   Login with Google
                 </button>
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                    <p className="text-red-500 text-xs text-center">{error}</p>
+                    {error.toLowerCase().includes('pop-up') && (
+                      <p className="text-white/40 text-[10px] text-center mt-2 leading-tight">
+                        Tip: If you're using a mobile browser, look for a "Pop-up blocked" message in the address bar and tap "Always allow".
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="relative flex items-center py-2">
                   <div className="flex-grow border-t border-white/10"></div>

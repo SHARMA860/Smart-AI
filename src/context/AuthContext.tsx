@@ -7,7 +7,7 @@ import {
   GoogleAuthProvider,
   signOut
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, getDocFromServer } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -72,6 +72,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Test connection to Firestore
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+        console.log('[FIREBASE] Connection verified successfully.');
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error('[FIREBASE] Please check your Firebase configuration or internet connection.');
+        }
+      }
+    };
+    testConnection();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Sync user to Firestore
@@ -99,8 +112,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      console.log('[AUTH] Initiating Google Sign-in...');
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      // Standard popup approach
+      const result = await signInWithPopup(auth, provider);
+      console.log('[AUTH] Sign-in successful:', result.user.email);
+    } catch (error: any) {
+      console.error('[AUTH] Google Sign-in Error:', error.code, error.message);
+      
+      if (error.code === 'auth/popup-blocked') {
+        throw new Error('Your browser or app blocked the login window. Please check your settings and allow pop-ups.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        throw new Error(`Domain Unauthorized: Please add "${window.location.hostname}" to your Authorized Domains in Firebase Console.`);
+      } else if (error.code === 'auth/disallowed-user-agent') {
+        throw new Error('Google blocks login inside some "app wrappers". Try opening the link directly in Chrome or Safari browser.');
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error('Login window was closed before finishing.');
+      } else if (error.code === 'auth/internal-error') {
+        throw new Error('A network error occurred. Please check your internet connection.');
+      }
+      
+      throw new Error(error.message || 'Login failed. Please try again.');
+    }
   };
 
   const logout = async () => {
