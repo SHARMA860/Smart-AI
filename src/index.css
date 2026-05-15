@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-brand: #FFFFFF;
+  --color-bg-dark: #000000;
+  --color-bg-light: #F9FAFB;
+  --color-surface: #121212;
+  --color-surface-light: #FFFFFF;
+  --color-surface-hover: #1e1e1e;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-light: rgba(0, 0, 0, 0.05);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply transition-colors duration-500 ease-in-out antialiased;
+  }
+}
+
+* {
+  @apply selection:bg-white/20 selection:text-white;
+}
+
+.light * {
+  @apply selection:bg-black/10 selection:text-black;
+}
+
+.dark {
+  @apply bg-bg-dark text-white font-sans antialiased;
+}
+
+.light {
+  @apply bg-bg-light text-slate-900 font-sans antialiased;
+}
+
+.glass {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10;
+}
+
+.glass-light {
+  @apply bg-white/70 backdrop-blur-xl border border-black/5;
+}
+
+.chat-input-shadow {
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+}
