@@ -5,40 +5,24 @@ import { SmartAILogo } from './Logo';
 import { Mail, ArrowRight, ShieldCheck, RefreshCcw } from 'lucide-react';
 
 export function AuthScreen({ onComplete }: { onComplete: () => void }) {
-  const { sendOtp, signInWithGoogle } = useAuth();
+  const { sendMagicLink, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [step, setStep] = useState<'email' | 'otp'>('email');
   const [loading, setLoading] = useState(false);
-  const [mockOtp, setMockOtp] = useState('');
   const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setLoading(true);
     setError('');
     try {
-      const code = await sendOtp(email);
-      setMockOtp(code);
-      setStep('otp');
-    } catch (err) {
-      setError('Failed to send OTP. Please try again.');
+      await sendMagicLink(email);
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send magic link. Please check your email and try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-${index + 1}`);
-      nextInput?.focus();
     }
   };
 
@@ -55,23 +39,6 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
     }
   };
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = otp.join('');
-    setLoading(true);
-    setError('');
-    
-    // In this demo, we check against the mockOtp we received
-    if (code === mockOtp) {
-      setTimeout(() => {
-        onComplete();
-      }, 1000);
-    } else {
-      setError('Invalid code. Please check and try again.');
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_50%_50%,#1a1a1a_0%,#000_100%)]">
       <motion.div 
@@ -84,12 +51,12 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
         </div>
 
         <AnimatePresence mode="wait">
-          {step === 'email' ? (
+          {!sent ? (
             <motion.div
-              key="email-step"
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
+              key="login-step"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               className="space-y-6"
             >
               <div className="text-center space-y-2">
@@ -116,9 +83,9 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
                     <p className="text-red-500 text-xs text-center">{error}</p>
-                    {error.toLowerCase().includes('pop-up') && (
+                    {(error.toLowerCase().includes('app wrapper') || error.toLowerCase().includes('disallowed')) && (
                       <p className="text-white/40 text-[10px] text-center mt-2 leading-tight">
-                        Tip: If you're using a mobile browser, look for a "Pop-up blocked" message in the address bar and tap "Always allow".
+                        Google prohibits login inside some mobile apps. Use the <strong>Magic Link</strong> option below instead.
                       </p>
                     )}
                   </div>
@@ -126,11 +93,11 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
 
                 <div className="relative flex items-center py-2">
                   <div className="flex-grow border-t border-white/10"></div>
-                  <span className="flex-shrink mx-4 text-white/20 text-[10px] uppercase tracking-widest font-bold">Alternative</span>
+                  <span className="flex-shrink mx-4 text-white/20 text-[10px] uppercase tracking-widest font-bold">OR USE MAGIC LINK</span>
                   <div className="flex-grow border-t border-white/10"></div>
                 </div>
 
-                <form onSubmit={handleSendOtp} className="space-y-4">
+                <form onSubmit={handleSendMagicLink} className="space-y-4">
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Mail size={18} className="text-white/40 group-focus-within:text-white transition-colors" />
@@ -140,7 +107,7 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Email Address"
+                      placeholder="Enter your email"
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-white placeholder:text-white/20 text-sm"
                     />
                   </div>
@@ -148,62 +115,40 @@ export function AuthScreen({ onComplete }: { onComplete: () => void }) {
                   <button
                     type="submit"
                     disabled={loading || !email}
-                    className="w-full bg-white/5 border border-white/10 text-white/60 font-medium py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 text-sm"
+                    className="w-full bg-white text-black font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/90 active:scale-[0.98] transition-all disabled:opacity-50"
                   >
-                    {loading ? <RefreshCcw size={16} className="animate-spin" /> : <>Send OTP to Mail (Preview) <ArrowRight size={16} /></>}
+                    {loading ? <RefreshCcw size={18} className="animate-spin" /> : <>Send Magic Link <ArrowRight size={18} /></>}
                   </button>
                   <p className="text-[10px] text-white/20 text-center leading-relaxed px-4">
-                    Note: Email OTP requires a production SMTP server. For instant real access, use Google Login above.
+                    Magic Link works everywhere, including mobile apps and mini-browsers.
                   </p>
                 </form>
               </div>
             </motion.div>
           ) : (
             <motion.div
-              key="otp-step"
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
-              className="space-y-6"
+              key="sent-step"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-center space-y-6 bg-white/5 border border-white/10 p-8 rounded-3xl"
             >
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-semibold flex items-center justify-center gap-2">
-                  <ShieldCheck className="text-green-500" /> Verify Identity
-                </h2>
-                <p className="text-white/60 text-sm">We've sent a 6-digit code to <span className="text-white">{email}</span></p>
-                <p className="text-[10px] text-white/20 font-mono">Authentication system active</p>
+              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail size={40} className="text-green-500" />
               </div>
-
-              <div className="flex justify-between gap-2">
-                {otp.map((digit, i) => (
-                  <input
-                    key={i}
-                    id={`otp-${i}`}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(i, e.target.value)}
-                    className="w-full h-14 bg-white/5 border border-white/10 rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
-                  />
-                ))}
+              <div className="space-y-2">
+                <h2 className="text-2xl font-semibold">Check your Email</h2>
+                <p className="text-white/60 text-sm px-4">
+                  We've sent a magic login link to <span className="text-white font-medium">{email}</span>.
+                </p>
               </div>
-
-              {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-
-              <button
-                onClick={handleVerify}
-                disabled={loading || otp.some(d => !d)}
-                className="w-full bg-white text-black font-semibold py-4 rounded-2xl hover:bg-white/90 active:scale-[0.98] transition-all disabled:opacity-50"
-              >
-                {loading ? "Verifying..." : "Verify Code"}
-              </button>
-
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-[11px] text-white/40 leading-relaxed">
+                Click the link in your email to sign in instantly. You can close this window now or wait here.
+              </div>
               <button 
-                onClick={() => setStep('email')}
-                className="w-full text-white/40 text-sm hover:text-white transition-colors"
+                onClick={() => setSent(false)}
+                className="text-white/40 text-xs hover:text-white transition-colors pt-4"
               >
-                Back to email
+                Use a different email
               </button>
             </motion.div>
           )}

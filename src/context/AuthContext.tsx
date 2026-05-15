@@ -5,7 +5,10 @@ import {
   User, 
   signInWithPopup,
   GoogleAuthProvider,
-  signOut
+  signOut,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, getDocFromServer } from 'firebase/firestore';
 
@@ -13,9 +16,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  sendMagicLink: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  signInWithOtp: (email: string, code: string) => Promise<void>;
-  sendOtp: (email: string) => Promise<string>; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,6 +87,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     testConnection();
 
+    // Handle Email Link Sign-in
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      let email = window.localStorage.getItem('emailForSignIn');
+      if (!email) {
+        email = window.prompt('Please provide your email for confirmation');
+      }
+      if (email) {
+        signInWithEmailLink(auth, email, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem('emailForSignIn');
+            console.log('[AUTH] Email link sign-in successful');
+          })
+          .catch((error) => {
+            console.error('[AUTH] Email link error:', error);
+          });
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Sync user to Firestore
@@ -123,19 +143,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('[AUTH] Google Sign-in Error:', error.code, error.message);
       
+      // Handle the "Requested action is invalid" error which often relates to configuration or domain
+      if (error.code === 'auth/invalid-auth-event' || error.message?.includes('requested action is invalid')) {
+        throw new Error('Invalid Action: This usually happens if your Vercel domain is not added to "Authorized Domains" in Firebase Console, or if the login is blocked by your app wrapper.');
+      }
+
       if (error.code === 'auth/popup-blocked') {
-        throw new Error('Your browser or app blocked the login window. Please check your settings and allow pop-ups.');
+        throw new Error('Your browser or app blocked the login window. Please allow pop-ups.');
       } else if (error.code === 'auth/unauthorized-domain') {
-        throw new Error(`Domain Unauthorized: Please add "${window.location.hostname}" to your Authorized Domains in Firebase Console.`);
-      } else if (error.code === 'auth/disallowed-user-agent') {
-        throw new Error('Google blocks login inside some "app wrappers". Try opening the link directly in Chrome or Safari browser.');
+        throw new Error(`Domain "${window.location.hostname}" is not authorized. Please add it to your Firebase Console under Authentication > Settings.`);
+      } else if (error.code === 'auth/disallowed-user-agent' || /wv|WebView/i.test(navigator.userAgent)) {
+        throw new Error('Login blocked: Google does not allow logins inside "App Wrappers". Please open the link directly in Chrome or Safari browser.');
       } else if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error('Login window was closed before finishing.');
-      } else if (error.code === 'auth/internal-error') {
-        throw new Error('A network error occurred. Please check your internet connection.');
+        throw new Error('Login window was closed.');
       }
       
-      throw new Error(error.message || 'Login failed. Please try again.');
+      throw new Error(error.message || 'Login failed. Please check your internet and try again.');
     }
   };
 
@@ -143,37 +166,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const sendOtp = async (email: string) => {
-    const response = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error);
-    return data.mockOtp; // Return mock OTP for demo purposes
-  };
-
-  const signInWithOtp = async (email: string, code: string) => {
-    // In this demo environment, we simulate successful OTP verification
-    // by signing in anonymously or with a mock user if the code is correct.
-    // For a real app, this would use a backend to verify and return a custom token.
-    console.log(`[AUTH] Verifying OTP ${code} for ${email}`);
-    
-    // Simulate verification
-    if (code.length === 6) {
-      // Create/Get user in the mock sense or use Firebase Auth login.
-      // For this app, I'll use a simple "logged in" state in the UI if real auth is hard,
-      // but I'll try to use a dummy sign-in.
-      // Actually, I can use Firebase's signInAnonymously and link the email.
-      // For simplicity, let's just use a custom state for "isEntering"
-    } else {
-      throw new Error("Invalid OTP");
+  const sendMagicLink = async (email: string) => {
+    const actionCodeSettings = {
+      url: window.location.origin,
+      handleCodeInApp: true,
+    };
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', email);
+    } catch (error: any) {
+      console.error('[AUTH] Magic Link Error:', error);
+      throw new Error(error.message || 'Failed to send magic link.');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout, signInWithOtp, sendOtp }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, sendMagicLink, logout }}>
       {children}
     </AuthContext.Provider>
   );
